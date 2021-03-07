@@ -1,13 +1,20 @@
-package com.smsreader
+package com.smsapp
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.SystemClock
 import android.telephony.SmsMessage
-import java.util.regex.Pattern
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 
 
-class SmsReceiver(private val listener: Listener) : BroadcastReceiver() {
+class SmsReceiver : BroadcastReceiver() {
 
     private val SMS_RECEIVED = "android.provider.Telephony.SMS_RECEIVED"
     override fun onReceive(context: Context?, intent: Intent) {
@@ -27,22 +34,50 @@ class SmsReceiver(private val listener: Listener) : BroadcastReceiver() {
                     sb.append(messages[i]?.messageBody)
                 }
 
-                //====todo we can add check here to read messages that we send and ignore others===
                 val sender: String? = messages[0]?.originatingAddress
                 val message = sb.toString()
-                val datePattern = Pattern.compile("\\d{2}-\\d{2}-\\d{4}")
-                val dateMatcher = datePattern.matcher(message)
-
-                val pricePattern = Pattern.compile("\\$(\\d*)")
-                val priceMatcher = pricePattern.matcher(message)
-
-                if (dateMatcher.find() && priceMatcher.find())
-                    listener.onSMSReceived(message, dateMatcher.group(0), priceMatcher.group(0))
+                createNotification(context, message, sender)
             }
         }
     }
 
-    interface Listener {
-        fun onSMSReceived(message: String?, date: String?, price: String?)
+    private fun createNotification(context: Context?, message: String?, sender: String?) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        intent.putExtra("sender", sender)
+        intent.putExtra("message", message)
+        intent.data = (Uri.parse("foobar://" + SystemClock.elapsedRealtime()));
+
+        val bigText = NotificationCompat.BigTextStyle()
+        bigText.bigText(message)
+        bigText.setBigContentTitle("$sender sent you a message")
+        bigText.setSummaryText("New Message")
+
+        val id = Math.random().toInt()
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(context, id, intent, 0)
+        val builder = NotificationCompat.Builder(context!!, context.getString(R.string.app_name)!!)
+            .setSmallIcon(R.drawable.bb)
+            .setContentTitle(sender)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setStyle(bigText)
+            .setAutoCancel(true)
+        with(NotificationManagerCompat.from(context)) {
+            // notificationId is a unique int for each notification that you must define
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channelId = "channel_id"
+                val channel = NotificationChannel(
+                    channelId,
+                    "Channel human readable title",
+                    NotificationManager.IMPORTANCE_HIGH
+                )
+                createNotificationChannel(channel)
+                builder.setChannelId(channelId)
+            }
+            notify(id, builder.build())
+        }
     }
+
 }

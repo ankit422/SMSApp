@@ -31,7 +31,7 @@ class MessageAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return if (viewType === TYPE_HEADER) {
+        return if (viewType == TYPE_HEADER) {
             val v: HeaderViewBinding = HeaderViewBinding.inflate(inflater, parent, false)
             VHHeader(v)
         } else {
